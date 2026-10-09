@@ -21,6 +21,10 @@ Staten Island has the most hydrants, but Manhattan has the *densest* coverage. R
 
 *Zoomed in with "Show individual hydrants" ticked: each blue dot is one hydrant, drawn over the neighborhood density colors.*
 
+<img src="images/live-map-mobile.jpg" alt="The live map on a phone, showing the Gramercy popup, metric dropdown, hydrant checkbox and legend" width="320">
+
+*The deployed map on a phone at burlesongis.github.io.*
+
 ## How it's built
 
 ```
