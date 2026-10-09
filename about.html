@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About: NYC Hydrant Density Map</title>
+    <style>
+        :root {
+            --bg: #fafaf8;
+            --card: #ffffff;
+            --text: #1d1d1b;
+            --muted: #5d5d58;
+            --line: #e3e3de;
+            --link: #1f5fa8;
+            --accent: #e31a1c;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #16161a;
+                --card: #1f1f25;
+                --text: #ececea;
+                --muted: #a4a4a0;
+                --line: #34343c;
+                --link: #7db4f0;
+                --accent: #ff6b6d;
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+        }
+        main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+        a { color: var(--link); }
+        .back {
+            display: inline-block;
+            margin-bottom: 16px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .back:hover { text-decoration: underline; }
+        h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 8px; }
+        .lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 28px; }
+        section {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 4px 20px 16px;
+            margin-bottom: 16px;
+        }
+        h2 { font-size: 1.15rem; margin: 18px 0 8px; }
+        ul, ol { padding-left: 1.2rem; margin: 8px 0; }
+        li { margin-bottom: 6px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+        th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+        th { color: var(--muted); font-weight: 600; }
+        .stat { color: var(--accent); font-weight: 700; }
+        code { background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+        footer { color: var(--muted); font-size: 0.9rem; margin-top: 24px; }
+    </style>
+</head>
+<body>
+<main>
+    <a class="back" href="index.html">&larr; Back to the map</a>
+
+    <h1>About this map</h1>
+    <p class="lede">An interactive look at how densely fire hydrants are spread across New York City's residential neighborhoods.</p>
+
+    <section>
+        <h2>The idea</h2>
+        <p>Count hydrants by neighborhood and Staten Island wins: its large neighborhoods hold the most hydrants. Divide by area, though, and the story flips. Manhattan's small, dense neighborhoods have the <em>highest density</em>, led by Gramercy at <span class="stat">384.7 hydrants per km&sup2;</span>.</p>
+        <p>The map lets you see both views. Use the <strong>Color by</strong> menu to switch between density and raw counts, and tick <strong>Show individual hydrants</strong> and zoom in to see every hydrant location.</p>
+    </section>
+
+    <section>
+        <h2>Data sources</h2>
+        <table>
+            <thead><tr><th>Dataset</th><th>Used for</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><a href="https://data.cityofnewyork.us/Environment/Hydrants/5bgh-vtsn">Hydrants (NYCDEP)</a><br><small>NYC Open Data</small></td>
+                    <td>109,725 hydrant locations</td>
+                </tr>
+                <tr>
+                    <td><a href="https://data.cityofnewyork.us/City-Government/2020-Neighborhood-Tabulation-Areas-NTAs-/9nt8-h7nd">2020 Neighborhood Tabulation Areas (NTAs)</a><br><small>NYC Open Data</small></td>
+                    <td>262 neighborhood boundaries, of which 197 are residential</td>
+                </tr>
+                <tr>
+                    <td><a href="https://openfreemap.org">OpenFreeMap</a>, &copy; <a href="https://openmaptiles.org">OpenMapTiles</a>, data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</td>
+                    <td>Basemap</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>Both NYC datasets were downloaded in September 2026 through the NYC Open Data API.</p>
+    </section>
+
+    <section>
+        <h2>Methodology</h2>
+        <ol>
+            <li><strong>Load.</strong> The hydrant points and neighborhood polygons were loaded into a PostGIS database.</li>
+            <li><strong>Filter to residential neighborhoods.</strong> NTAs carry a type code; type <code>0</code> marks residential neighborhoods. Parks, airports, cemeteries and similar areas are left out, leaving 197 neighborhoods.</li>
+            <li><strong>Count hydrants.</strong> A spatial join (<code>ST_Contains</code>) assigns each hydrant to the neighborhood polygon it falls inside. Of the 109,725 hydrants, 108,121 fall inside a residential neighborhood.</li>
+            <li><strong>Compute density.</strong> Hydrants per km&sup2; is the hydrant count divided by the neighborhood's area in square kilometers, calculated on the geography type so the area is measured on the earth's surface.</li>
+            <li><strong>Build vector tiles.</strong> The neighborhoods and the hydrant points were converted to vector tiles with tippecanoe and packed into two <a href="https://github.com/protomaps/PMTiles">PMTiles</a> files. The browser downloads only the tiles it needs using HTTP range requests, so no tile server is involved.</li>
+            <li><strong>Render.</strong> <a href="https://maplibre.org">MapLibre GL JS</a> draws the tiles and colors each neighborhood into five bins. The map colors and the legend are generated from the same settings, so they always agree.</li>
+        </ol>
+    </section>
+
+    <section>
+        <h2>Things to keep in mind</h2>
+        <ul>
+            <li><strong>Neighborhoods are statistical areas.</strong> NTAs are built by the city for reporting. They do not always match the boundaries people use in everyday life.</li>
+            <li><strong>Boundary cases.</strong> A hydrant sitting exactly on a neighborhood edge is not counted by <code>ST_Contains</code>.</li>
+            <li><strong>Color bins are fixed.</strong> Density uses breaks at 100, 150, 200 and 300 hydrants per km&sup2;, and counts use 300, 450, 600 and 800. Different breaks would change how the map looks.</li>
+            <li><strong>Zoomed-out hydrant view is a sample.</strong> To keep the tiles light, tippecanoe thins hydrant points at lower zoom levels. Zoom in fully to see every hydrant.</li>
+            <li><strong>Locations only.</strong> The data shows where hydrants are, not whether they work or how much water they deliver.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>Built with</h2>
+        <p>PostGIS &middot; tippecanoe &middot; PMTiles &middot; MapLibre GL JS &middot; GitHub Pages. The source for this project is on <a href="https://github.com/burlesongis/nyc-hydrant-map">GitHub</a>.</p>
+    </section>
+
+    <footer>Built by Dana Burleson as part of Matt Forrest's Modern GIS Accelerator course.</footer>
+</main>
+</body>
+</html>

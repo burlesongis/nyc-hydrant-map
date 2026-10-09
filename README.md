@@ -4,7 +4,7 @@ An interactive web map of fire hydrant density across New York City's residentia
 
 ![NYC hydrant density choropleth with a popup open on Gramercy](images/density-map-popup.png)
 
-**Live map:** https://burlesongis.github.io/nyc-hydrant-map/ <!-- replace after deploying -->
+**Live map:** https://burlesongis.github.io/nyc-hydrant-map/
 
 ## What it shows
 
@@ -85,6 +85,7 @@ bash create_hydrant_pmtiles.sh    # hydrant points straight from PostGIS
 
 ```
 index.html                      the whole web map (MapLibre, no build step)
+about.html                      project description, data sources and methodology
 neighborhood_density.pmtiles    neighborhood polygons
 hydrants.pmtiles                residential hydrant points
 create_pmtiles.sh               GeoJSON -> neighborhood tiles
