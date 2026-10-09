@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC Hydrant Density by Neighborhood</title>
+
+    <!-- MapLibre GL JS -->
+    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.21.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.21.0/dist/maplibre-gl.js"></script>
+
+    <!-- PMTiles protocol plugin — lets MapLibre read .pmtiles files directly -->
+    <script src="https://cdn.jsdelivr.net/npm/pmtiles@4.4.0/dist/pmtiles.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        #map { width: 100vw; height: 100vh; }
+
+        /* --- Legend --- */
+        #legend {
+            position: absolute;
+            bottom: 30px;
+            left: 10px;
+            background: white;
+            padding: 12px 14px;
+            border-radius: 6px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            font-size: 13px;
+            z-index: 1;
+        }
+        #legend h4 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .legend-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 3px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 14px;
+            margin-right: 8px;
+            border-radius: 2px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        /* --- Info panel --- */
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px 14px;
+            border-radius: 6px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            font-size: 13px;
+            z-index: 1;
+            max-width: 280px;
+        }
+        #info h3 {
+            margin: 0 0 4px 0;
+            font-size: 15px;
+        }
+        #info p {
+            margin: 0;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Info panel -->
+<div id="info">
+    <h3>NYC Hydrant Density</h3>
+    <p>Fire hydrants per neighborhood. Click a neighborhood for details.</p>
+    <label for="metric" style="display:block; margin-top:8px; font-weight:600;">Color by</label>
+    <select id="metric" style="width:100%; margin-top:2px; padding:4px;">
+        <option value="density">Hydrants per km²</option>
+        <option value="count">Hydrant count</option>
+    </select>
+    <label style="display:block; margin-top:8px;">
+        <input type="checkbox" id="hydrants-toggle"> Show individual hydrants (zoom in for visibility)
+    </label>
+</div>
+
+<!-- Legend -->
+<div id="legend">
+    <h4 id="legend-title"></h4>
+    <div id="legend-rows"></div>
+</div>
+
+<script>
+    // ── Register the PMTiles protocol so MapLibre can read .pmtiles URLs ──
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol('pmtiles', protocol.tile);
+
+        // ── Metrics the dropdown can switch between ───────────────────────────
+    const COLORS = ['#ffffcc', '#fed976', '#fd8d3c', '#e31a1c', '#800026'];
+
+    const METRICS = {
+        density: { property: 'hydrants_per_km2', title: 'Hydrants per km²', breaks: [100, 150, 200, 300] },
+        count:   { property: 'hydrant_count',     title: 'Hydrant count',    breaks: [300, 450, 600, 800] }
+    };
+
+    const select = document.getElementById('metric');
+    const hydrantsToggle = document.getElementById('hydrants-toggle');
+
+    // Build a MapLibre 'step' expression from a metric's settings
+    function buildFillColor(m) {
+        const expr = ['step', ['get', m.property], COLORS[0]];
+        m.breaks.forEach((b, i) => expr.push(b, COLORS[i + 1]));
+        return expr;
+    }
+
+    // Rebuild the legend from the same settings
+    function renderLegend(m) {
+        document.getElementById('legend-title').textContent = m.title;
+        const labels = [`&lt; ${m.breaks[0]}`];
+        for (let i = 0; i < m.breaks.length - 1; i++) {
+            labels.push(`${m.breaks[i]} – ${m.breaks[i + 1]}`);
+        }
+        labels.push(`${m.breaks[m.breaks.length - 1]}+`);
+        document.getElementById('legend-rows').innerHTML = labels.map((label, i) =>
+            `<div class="legend-row"><div class="legend-color" style="background:${COLORS[i]}"></div> ${label}</div>`
+        ).join('');
+    }
+
+    renderLegend(METRICS[select.value]);
+
+    // ── Create the map ────────────────────────────────────────────────────
+    const map = new maplibregl.Map({
+        container: 'map',
+        // Free OpenStreetMap-based vector basemap from OpenFreeMap (no API key)
+        style: 'https://tiles.openfreemap.org/styles/liberty',
+        center: [-73.95, 40.72],  // NYC center
+        zoom: 10.5,
+        maxZoom: 14,
+        minZoom: 8
+    });
+
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+    // ── Add the PMTiles source and layers when the map loads ──────────────
+    map.on('load', () => {
+
+        // PMTiles source — the file is served from the same directory
+        map.addSource('density', {
+            type: 'vector',
+            url: 'pmtiles://neighborhood_density.pmtiles'
+        });
+
+        // Choropleth fill layer — YlOrRd color ramp matching the legend
+        map.addLayer({
+            id: 'density-fill',
+            type: 'fill',
+            source: 'density',
+            'source-layer': 'neighborhood_density',
+            paint: {
+                'fill-color': buildFillColor(METRICS[select.value]),
+                'fill-opacity': 0.7
+            }
+        });
+
+        // Outline layer for neighborhood boundaries
+        map.addLayer({
+            id: 'density-outline',
+            type: 'line',
+            source: 'density',
+            'source-layer': 'neighborhood_density',
+            paint: {
+                'line-color': '#333',
+                'line-width': 0.5,
+                'line-opacity': 0.6
+            }
+        });
+
+        // Highlight layer — invisible until a feature is hovered
+        map.addLayer({
+            id: 'density-highlight',
+            type: 'line',
+            source: 'density',
+            'source-layer': 'neighborhood_density',
+            paint: {
+                'line-color': '#000',
+                'line-width': 2.5
+            },
+            filter: ['==', 'ntaname', '']  // matches nothing initially
+        });
+                // Hydrant points: a second PMTiles file, hidden until the box is checked
+        map.addSource('hydrants', {
+            type: 'vector',
+            url: 'pmtiles://hydrants.pmtiles'
+        });
+
+        map.addLayer({
+            id: 'hydrants-points',
+            type: 'circle',
+            source: 'hydrants',
+            'source-layer': 'hydrants',
+            minzoom: 12,
+            layout: { visibility: hydrantsToggle.checked ? 'visible' : 'none' },
+            paint: {
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 1.5, 12, 2, 14, 3],
+                'circle-color': '#1f78b4',
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-width': 0.5,
+                'circle-opacity': 0.9
+            }
+        });
+    });
+
+    // ── Click handler — show popup with neighborhood details ──────────────
+    map.on('click', 'density-fill', (e) => {
+        if (!e.features || e.features.length === 0) return;
+
+        const f = e.features[0].properties;
+        const html = `
+            <strong>${f.ntaname}</strong><br>
+            ${f.boroname}<br>
+            <hr style="margin:4px 0;border:none;border-top:1px solid #ddd">
+            Fire Hydrants: <strong>${f.hydrant_count}</strong><br>
+            Area: ${f.area_km2} km²<br>
+            Density: <strong>${f.hydrants_per_km2} / km²</strong>
+        `;
+
+        new maplibregl.Popup({ maxWidth: '240px' })
+            .setLngLat(e.lngLat)
+            .setHTML(html)
+            .addTo(map);
+    });
+
+    // ── Hover effect — highlight the neighborhood under the cursor ────────
+    map.on('mousemove', 'density-fill', (e) => {
+        map.getCanvas().style.cursor = 'pointer';
+        if (e.features && e.features.length > 0) {
+            map.setFilter('density-highlight', [
+                '==', 'ntaname', e.features[0].properties.ntaname
+            ]);
+        }
+    });
+
+    map.on('mouseleave', 'density-fill', () => {
+        map.getCanvas().style.cursor = '';
+        map.setFilter('density-highlight', ['==', 'ntaname', '']);
+    });
+
+    // ── Dropdown: switch the colored metric ───────────────────────────────
+    select.addEventListener('change', () => {
+        const m = METRICS[select.value];
+        if (map.getLayer('density-fill')) {
+            map.setPaintProperty('density-fill', 'fill-color', buildFillColor(m));
+        }
+        renderLegend(m);
+    });
+        // ── Checkbox: show or hide the hydrant points ─────────────────────────
+    hydrantsToggle.addEventListener('change', () => {
+        if (map.getLayer('hydrants-points')) {
+            map.setLayoutProperty('hydrants-points', 'visibility',
+                hydrantsToggle.checked ? 'visible' : 'none');
+        }
+    });
+</script>
+
+</body>
+</html>
