@@ -15,6 +15,7 @@ Staten Island has the most hydrants, but Manhattan has the *densest* coverage. R
 ## Features
 
 - **Choropleth** of 197 residential neighborhoods, colored on a five-step yellow-to-red ramp
+- **Neighborhood search:** type a name (with autocomplete) to fly to that neighborhood, outline it in blue and open its popup
 - **Metric dropdown:** switch between *Hydrants per km²* and *Hydrant count*; the map colors and the legend update together
 - **Hydrant checkbox:** show or hide the individual hydrant points (zoom in to see them)
 - **Hover** to outline a neighborhood, **click** for a popup with its name, borough, hydrant count, area and density
@@ -75,6 +76,7 @@ bash create_hydrant_pmtiles.sh    # hydrant points straight from PostGIS
 - **Density over counts.** Counts say Staten Island; density says Manhattan. The default view uses density, and the dropdown lets you compare.
 - **Separate breakpoints per metric.** Counts range from 81 to 1,708, so they get their own color breaks (300 / 450 / 600 / 800). Reusing the density breaks would turn almost everything dark red. One `METRICS` settings object drives both the map colors and the legend, so they can't drift apart.
 - **Residential neighborhoods only.** Parks, airports and cemeteries are excluded. 108,121 of 109,725 hydrants fall inside the residential neighborhoods.
+- **Search from a name list, not the tiles.** MapLibre can only query tiles that are currently loaded, so a search over the map itself would miss neighborhoods that are off screen. A small `neighborhoods.json` (names, stats, bounds) covers all 197 wherever the map is looking.
 - **Thinned points at low zoom.** Tippecanoe drops points at lower zooms by default, so zoomed-out views show a sample and the maximum zoom shows every hydrant.
 
 ## Challenges
@@ -94,6 +96,7 @@ index.html                      the whole web map (MapLibre, no build step)
 about.html                      project description, data sources and methodology
 neighborhood_density.pmtiles    neighborhood polygons
 hydrants.pmtiles                residential hydrant points
+neighborhoods.json              names, stats and bounds for the search box
 create_pmtiles.sh               GeoJSON -> neighborhood tiles
 create_hydrant_pmtiles.sh       PostGIS -> hydrant tiles
 residential_hydrants.sql        hydrants inside residential neighborhoods
