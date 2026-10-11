@@ -78,6 +78,11 @@
 <div id="info">
     <h3>NYC Hydrant Density</h3>
     <p>Fire hydrants per neighborhood. Click a neighborhood for details.</p>
+        <label for="search" style="display:block; margin-top:8px; font-weight:600;">Find a neighborhood</label>
+    <input id="search" type="search" list="nta-list" placeholder="Start typing…" autocomplete="off"
+           style="width:100%; margin-top:2px; padding:4px;">
+    <datalist id="nta-list"></datalist>
+    <p id="search-msg" style="margin-top:2px; font-size:12px; color:#b00020;"></p>
     <label for="metric" style="display:block; margin-top:8px; font-weight:600;">Color by</label>
     <select id="metric" style="width:100%; margin-top:2px; padding:4px;">
         <option value="density">Hydrants per km²</option>
@@ -192,6 +197,20 @@
             },
             filter: ['==', 'ntaname', '']  // matches nothing initially
         });
+
+                // Selected layer — outlines the neighborhood chosen in the search box
+        map.addLayer({
+            id: 'density-selected',
+            type: 'line',
+            source: 'density',
+            'source-layer': 'neighborhood_density',
+            paint: {
+                'line-color': '#0066ff',
+                'line-width': 3.5
+            },
+            filter: ['==', 'ntaname', '']  // matches nothing initially
+        });
+
                 // Hydrant points: a second PMTiles file, hidden until the box is checked
         map.addSource('hydrants', {
             type: 'vector',
@@ -265,6 +284,63 @@
                 hydrantsToggle.checked ? 'visible' : 'none');
         }
     });
+        // ── Search box: find a neighborhood by name ───────────────────────────
+    const searchInput = document.getElementById('search');
+    const searchMsg = document.getElementById('search-msg');
+    const ntaList = document.getElementById('nta-list');
+    let neighborhoods = [];
+    let searchPopup = null;
+
+    // Load the name list and fill the autocomplete suggestions
+    fetch('neighborhoods.json')
+        .then(r => r.json())
+        .then(data => {
+            neighborhoods = data;
+            data.forEach(n => {
+                const opt = document.createElement('option');
+                opt.value = n.name;
+                opt.label = n.boro;
+                ntaList.appendChild(opt);
+            });
+        });
+
+    function selectNeighborhood(name) {
+        const n = neighborhoods.find(x => x.name.toLowerCase() === name.trim().toLowerCase());
+        searchMsg.textContent = '';
+        if (searchPopup) searchPopup.remove();
+        if (map.getLayer('density-selected')) {
+            map.setFilter('density-selected', ['==', 'ntaname', n ? n.name : '']);
+        }
+        if (!n) {
+            if (name.trim() !== '') searchMsg.textContent = 'No neighborhood by that name.';
+            return;
+        }
+        map.fitBounds([[n.bbox[0], n.bbox[1]], [n.bbox[2], n.bbox[3]]], {
+            padding: { top: 60, bottom: 60, left: window.innerWidth > 700 ? 320 : 60, right: 60 },
+            maxZoom: 14
+        });
+        searchPopup = new maplibregl.Popup({ maxWidth: '240px' })
+            .setLngLat(n.center)
+            .setHTML(`
+                <strong>${n.name}</strong><br>
+                ${n.boro}<br>
+                <hr style="margin:4px 0;border:none;border-top:1px solid #ddd">
+                Fire Hydrants: <strong>${n.count}</strong><br>
+                Area: ${n.area} km²<br>
+                Density: <strong>${n.density} / km²</strong>
+            `)
+            .addTo(map);
+    }
+
+    // Picking from the list (or clearing the box) acts immediately;
+    // pressing Enter or leaving the box shows a message if nothing matched
+    searchInput.addEventListener('input', () => {
+        const v = searchInput.value.trim().toLowerCase();
+        if (v === '' || neighborhoods.some(x => x.name.toLowerCase() === v)) {
+            selectNeighborhood(searchInput.value);
+        }
+    });
+    searchInput.addEventListener('change', () => selectNeighborhood(searchInput.value));
 </script>
 
 </body>
