@@ -6,6 +6,8 @@ An interactive web map of fire hydrant density across New York City's residentia
 
 **Live map:** https://burlesongis.github.io/nyc-hydrant-map/
 
+**Companion project:** [NYC Fire Hydrant Density Dashboard](https://nyc-hydrant-dashboard-bgis.streamlit.app/), a Streamlit app built on the same neighborhood data with borough and density filters, a top-15 chart and CSV export ([source](https://github.com/burlesongis/nyc-hydrant-dashboard)).
+
 ## What it shows
 
 Staten Island has the most hydrants, but Manhattan has the *densest* coverage. Raw counts favor big neighborhoods, so the map colors each of NYC's 197 residential neighborhoods by hydrants per square kilometer (Gramercy is highest at 384.7 per km²) and lets you switch to raw counts to see the difference.
