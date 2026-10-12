@@ -76,6 +76,7 @@ bash create_hydrant_pmtiles.sh    # hydrant points straight from PostGIS
 - **Density over counts.** Counts say Staten Island; density says Manhattan. The default view uses density, and the dropdown lets you compare.
 - **Separate breakpoints per metric.** Counts range from 81 to 1,708, so they get their own color breaks (300 / 450 / 600 / 800). Reusing the density breaks would turn almost everything dark red. One `METRICS` settings object drives both the map colors and the legend, so they can't drift apart.
 - **Residential neighborhoods only.** Parks, airports and cemeteries are excluded. 108,121 of 109,725 hydrants fall inside the residential neighborhoods.
+- **A quiet basemap.** I compared OpenFreeMap's liberty, bright and positron styles. Liberty and bright have colorful roads and land that compete with the yellow-to-red density ramp (bright's orange roads show through the semi-transparent fill), so the map uses positron, a pale gray basemap that lets the choropleth and the blue hydrant points stand out.
 - **Search from a name list, not the tiles.** MapLibre can only query tiles that are currently loaded, so a search over the map itself would miss neighborhoods that are off screen. A small `neighborhoods.json` (names, stats, bounds) covers all 197 wherever the map is looking.
 - **Thinned points at low zoom.** Tippecanoe drops points at lower zooms by default, so zoomed-out views show a sample and the maximum zoom shows every hydrant.
 
